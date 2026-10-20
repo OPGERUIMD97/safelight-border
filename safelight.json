@@ -1,0 +1,12 @@
+{
+  "id": "safelight-border",
+  "name": "Border",
+  "version": "1.0.0",
+  "description": "Add a non-destructive solid border to exported photos. Per-side width, custom color, and named templates. Export shows Apply border and a Template picker. Show in Develop only controls the canvas overlay; the panel preview always shows the current settings.",
+  "author": "OPGERUIMD97",
+  "main": "dist/index.js",
+  "categories": ["Export"],
+  "keywords": ["border", "matte", "export", "frame"],
+  "license": "MIT",
+  "repository": "OPGERUIMD97/safelight-border"
+}
