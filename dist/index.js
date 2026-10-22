@@ -279,22 +279,32 @@ function resetActiveToDefaults() {
 // Where a preview border should sit, in pixels of `rect`, so a 20px export
 // border stays a 20px border on the full frame and a proportionally thin
 // border on a scaled Develop view.
+function snapPx(value, dpr) {
+  return Math.round(value * dpr) / dpr;
+}
+
 function screenFrame(template, rect, reference) {
   if (!template || !rect || !rect.w || !rect.h) return null;
+  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
   const refW = reference?.w || rect.w;
   const refH = reference?.h || rect.h;
-  const sx = rect.w / refW;
-  const sy = rect.h / refH;
-  const left = clampPx(template.left) * sx;
-  const right = clampPx(template.right) * sx;
-  const top = clampPx(template.top) * sy;
-  const bottom = clampPx(template.bottom) * sy;
+  const photoLeft = snapPx(rect.x, dpr);
+  const photoTop = snapPx(rect.y, dpr);
+  const photoRight = snapPx(rect.x + rect.w, dpr);
+  const photoBottom = snapPx(rect.y + rect.h, dpr);
+  const photoW = photoRight - photoLeft;
+  const photoH = photoBottom - photoTop;
+  const left = snapPx(clampPx(template.left) * (photoW / refW), dpr);
+  const right = snapPx(clampPx(template.right) * (photoW / refW), dpr);
+  const top = snapPx(clampPx(template.top) * (photoH / refH), dpr);
+  const bottom = snapPx(clampPx(template.bottom) * (photoH / refH), dpr);
   return {
     left, right, top, bottom,
-    outerLeft: rect.x - left,
-    outerTop: rect.y - top,
-    outerW: rect.w + left + right,
-    outerH: rect.h + top + bottom,
+    photoLeft, photoTop, photoRight, photoBottom, photoW, photoH,
+    outerLeft: photoLeft - left,
+    outerTop: photoTop - top,
+    outerW: photoW + left + right,
+    outerH: photoH + top + bottom,
     visible: left + right + top + bottom > 0,
   };
 }
