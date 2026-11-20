@@ -10,6 +10,8 @@ Please **deactivate and uninstall** this extension in Safelight → **View → E
 
 Templates stay in browser storage under `safelight-border-*` for migration.
 
+From Safelight 3.2.6, installing Framing / Border turns this extension off automatically, and the Extensions window marks it **Discontinued** with an **Install replacement** button.
+
 ## Changelog
 
 ### 1.1.0 — discontinued

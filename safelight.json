@@ -8,5 +8,6 @@
   "categories": ["Export"],
   "keywords": ["border", "matte", "export", "frame"],
   "license": "MIT",
-  "repository": "OPGERUIMD97/safelight-border"
+  "repository": "OPGERUIMD97/safelight-border",
+  "deprecated": { "replacedBy": "OPGERUIMD97/safelight-mat-frame", "message": "Solid borders are now in Framing / Border (Border mode). Use Import Border for your templates." }
 }
