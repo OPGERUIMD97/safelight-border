@@ -1,13 +1,13 @@
 {
   "id": "safelight-border",
   "name": "Border",
-  "version": "1.1.0",
-  "description": "DISCONTINUED — solid borders are now in Framing / Border (OPGERUIMD97/safelight-mat-frame). Please deactivate and uninstall.",
+  "version": "2.0.0",
+  "description": "A border around the photo in Develop, drawn inside the frame so the photo keeps its size. Visible in Develop, on thumbnails, in presets and in every export.",
   "author": "OPGERUIMD97",
   "main": "dist/index.js",
-  "categories": ["Export"],
-  "keywords": ["border", "matte", "export", "frame"],
+  "categories": ["Look"],
+  "keywords": ["border", "frame line", "framing", "develop"],
   "license": "MIT",
   "repository": "OPGERUIMD97/safelight-border",
-  "deprecated": { "replacedBy": "OPGERUIMD97/safelight-mat-frame", "message": "Solid borders are now in Framing / Border (Border mode). Use Import Border for your templates." }
+  "minAppVersion": "3.2.6"
 }
