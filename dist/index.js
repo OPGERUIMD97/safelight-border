@@ -222,7 +222,7 @@ export function templateMatches(t, bag) {
   });
 }
 
-function loadTemplates() {
+export function loadTemplates() {
   try {
     const raw = localStorage.getItem(TEMPLATES_KEY);
     if (raw) {
@@ -233,7 +233,7 @@ function loadTemplates() {
   return STARTER_TEMPLATES.map((t) => ({ ...t }));
 }
 
-function saveTemplates(list) {
+export function saveTemplates(list) {
   try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list)); } catch (e) {}
 }
 
@@ -246,6 +246,14 @@ export function defaultTemplate(list, id) {
 
 export function loadDefaultId() {
   try { return localStorage.getItem(DEFAULT_TEMPLATE_KEY) || ""; } catch (e) { return ""; }
+}
+
+// Back to the built-in templates: your own are removed and the default mark is cleared.
+export function resetTemplates() {
+  const list = STARTER_TEMPLATES.map((t) => ({ ...t, color: [...t.color], lineColor: [...t.lineColor] }));
+  saveTemplates(list);
+  saveDefaultId("");
+  return list;
 }
 
 export function saveDefaultId(id) {
@@ -465,6 +473,7 @@ export function activate(api) {
     const [list, setList] = useState(loadTemplates);
     const [defId, setDefId] = useState(loadDefaultId);
     const [naming, setNaming] = useState(false);
+    const [confirmReset, setConfirmReset] = useState(false);
     const [name, setName] = useState("");
     const current = list.find((t) => templateMatches(t, bag));
     const def = defaultTemplate(list, defId);
@@ -541,8 +550,34 @@ export function activate(api) {
             ? h("button", { type: "button", style: small, onClick: remove, title: `Delete "${current.name}"` }, "Delete")
             : null);
 
-    return h("div", { style: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 } },
+    const doReset = () => {
+      setList(resetTemplates());
+      setDefId("");
+      setConfirmReset(false);
+    };
+    const linkBtn = {
+      fontSize: 11, padding: 0, border: "none", background: "none", cursor: "pointer",
+      color: "var(--color-text-muted)", textDecoration: "underline",
+    };
+    const header = h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
       h("span", { style: { fontSize: 12 } }, "Templates"),
+      confirmReset ? null : h("button", {
+        type: "button", style: linkBtn, onClick: () => setConfirmReset(true),
+        title: "Back to the built-in templates",
+      }, "Reset templates"));
+    const confirmRow = confirmReset
+      ? h("div", { style: { display: "flex", flexDirection: "column", gap: 6, padding: 6, borderRadius: 4,
+                            border: "1px solid var(--color-border)" } },
+          h("span", { style: { fontSize: 11 } },
+            "Back to the built-in templates? Your own templates and the default mark are removed. Borders on photos stay as they are."),
+          h("div", { style: { display: "flex", gap: 6, justifyContent: "flex-end" } },
+            h("button", { type: "button", style: small, onClick: () => setConfirmReset(false) }, "Cancel"),
+            h("button", { type: "button", style: { ...small, borderColor: "var(--color-accent)" }, onClick: doReset }, "Reset")))
+      : null;
+
+    return h("div", { style: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 } },
+      header,
+      confirmRow,
       chips,
       actions);
   }
@@ -749,5 +784,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.5.0 loaded");
+  console.log("[safelight-border] v2.6.0 loaded");
 }

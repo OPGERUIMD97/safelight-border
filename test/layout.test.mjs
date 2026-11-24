@@ -119,3 +119,16 @@ import { appendBorderStep, BORDER_OFF_PATCH } from "../dist/index.js";
   assert.equal(c.stack[3].paramBag["safelight-border.paint.bOn"], false);
 }
 console.log("library step tests passed");
+
+// Reset brings back the built-in templates and clears the default.
+import { resetTemplates, loadDefaultId, saveDefaultId, saveTemplates, loadTemplates } from "../dist/index.js";
+{
+  const mem = {}; globalThis.localStorage = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } };
+  saveTemplates([{ id: "mine", name: "Mine", size: 4 }]); saveDefaultId("mine");
+  const list = resetTemplates();
+  assert.deepEqual(list.map((t) => t.id), STARTER_TEMPLATES.map((t) => t.id));
+  assert.deepEqual(loadTemplates().map((t) => t.id), STARTER_TEMPLATES.map((t) => t.id));
+  assert.equal(loadDefaultId(), "");
+  list[0].color[0] = 0.5; assert.equal(STARTER_TEMPLATES[0].color[0], 1);
+}
+console.log("reset tests passed");
