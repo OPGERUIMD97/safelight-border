@@ -509,6 +509,23 @@ export function activate(api) {
         "The frame follows your crop, so pick 1:1 or 3:2 in Crop for that shape."));
   }
 
+  // Green dot in the panel header while a border is on, so it shows when the
+  // panel is collapsed too. The tooltip names the matching template.
+  function ActiveDot() {
+    const bag = useBag();
+    if (!(Number(readBag(bag, K.size)) > 0)) return null;
+    const t = loadTemplates().find((x) => templateMatches(x, bag));
+    const label = t ? `Border on: ${t.name}` : "Border on";
+    return h("span", {
+      title: label, "aria-label": label, role: "img",
+      style: {
+        display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+        background: "var(--color-success, #3fb950)",
+        boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+      },
+    });
+  }
+
   function resetAll() {
     const s = store();
     if (!s) return;
@@ -522,11 +539,12 @@ export function activate(api) {
     id: PANEL_ID,
     title: "Border",
     component: BorderPanel,
+    headerAccessory: ActiveDot,
     order: 80,
     defaultDock: { module: "develop", direction: "right", order: 80 },
     onReset: resetAll,
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.2.0 loaded");
+  console.log("[safelight-border] v2.3.0 loaded");
 }

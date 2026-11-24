@@ -33,6 +33,9 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 
 ## Changelog
 
+### 2.3.0
+- A green dot in the panel header shows when a border is on, also when the panel is collapsed. Hover it to see which template is active.
+
 ### 2.2.0
 - Templates are shown as chips.
 - Mark one template as default (★) and add it with one click via **Add border**.
