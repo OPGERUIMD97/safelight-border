@@ -269,6 +269,24 @@ export function appendBorderStep(editState, photoId, patch, label, fresh, now = 
   return { photoId, stack, currentIndex: stack.length - 1 };
 }
 
+// The extension bag of the step a stored edit stands on, or {} for none.
+export function bagAtCursor(editState) {
+  const stack = editState && Array.isArray(editState.stack) ? editState.stack : [];
+  if (stack.length === 0) return {};
+  const ci = editState.currentIndex;
+  const i = Number.isInteger(ci) && ci >= 0 && ci < stack.length ? ci : stack.length - 1;
+  return (stack[i] && stack[i].paramBag) || {};
+}
+
+// False when the bag has no border; otherwise the matching template's name
+// (or null when the settings match none).
+export function borderInfo(bag, templates) {
+  const size = bag ? Number(bag[K.size]) : 0;
+  if (!(size > 0)) return false;
+  const t = (templates || []).find((x) => templateMatches(x, bag));
+  return { name: t ? t.name : null };
+}
+
 export const BORDER_OFF_PATCH = { [K.size]: 0, [K.on]: false };
 
 // ── Colour helpers ─────────────────────────────────────────────────────────
@@ -298,6 +316,35 @@ export function activate(api) {
   const useUIStore = api.stores?.useUIStore;
   const useCatalogStore = api.stores?.useCatalogStore;
   const catalogApi = api.catalog || {};
+  // Which photos carry a border, for the grid badge and the Library panel.
+  // Filled lazily from each photo's stored edit and kept fresh by its edit time.
+  const createStore = api.stores?.create;
+  const useBorderMap = typeof createStore === "function" ? createStore(() => ({ map: {} })) : null;
+  const setBorder = (id, info) => {
+    if (!useBorderMap || !id) return;
+    const prev = useBorderMap.getState().map[id];
+    if (JSON.stringify(prev) === JSON.stringify(info)) return;
+    useBorderMap.setState((st) => ({ map: { ...st.map, [id]: info } }));
+  };
+  async function refreshBorder(id) {
+    if (typeof catalogApi.getEditState !== "function") return;
+    try {
+      setBorder(id, borderInfo(bagAtCursor(await catalogApi.getEditState(id)), loadTemplates()));
+    } catch (e) {}
+  }
+  function useBorderOf(id) {
+    const editedAt = typeof catalogApi.useEditedAt === "function" ? catalogApi.useEditedAt(id) : undefined;
+    const info = useBorderMap ? useBorderMap((st) => st.map[id]) : undefined;
+    useEffect(() => { void refreshBorder(id); }, [id, editedAt]);
+    return info;
+  }
+  // The photo open in Develop follows its live bag.
+  useDevelopStore?.subscribe?.((st, prev) => {
+    if (!st || !st.photoId) return;
+    if (prev && st.paramBag === prev.paramBag && st.photoId === prev.photoId) return;
+    setBorder(st.photoId, borderInfo(st.paramBag, loadTemplates()));
+  });
+
   // Process version for a photo that was never edited (core's current one).
   const FRESH_PROCESS_VERSION = 2;
 
@@ -517,6 +564,7 @@ export function activate(api) {
       const existing = await catalogApi.getEditState(id);
       await catalogApi.putEditState(appendBorderStep(existing, id, patch, label, fresh));
       catalogApi.requestThumbnail?.(id);
+      setBorder(id, borderInfo(patch[K.size] > 0 ? patch : {}, loadTemplates()));
       done++;
       onProgress?.(done);
     }
@@ -534,6 +582,11 @@ export function activate(api) {
     const [status, setStatus] = useState("");
     const canWrite = typeof catalogApi.getEditState === "function" && typeof catalogApi.putEditState === "function";
     const pick = list.find((t) => t.id === pickId);
+    const map = useBorderMap ? useBorderMap((st) => st.map) : {};
+    const key = ids.join("|");
+    useEffect(() => { for (const id of ids) if (map[id] === undefined) void refreshBorder(id); }, [key]);
+    const withBorder = ids.filter((id) => map[id]);
+    const names = Array.from(new Set(withBorder.map((id) => map[id].name || "Custom")));
 
     const run = async (patch, label, verb) => {
       if (!n || busy) return;
@@ -589,6 +642,12 @@ export function activate(api) {
           onClick: () => run(templateToPatch(pick), `Border template: ${pick.name}`, "Adding"),
         }, n ? `Apply to ${n} photo${n === 1 ? "" : "s"}` : "Select photos")),
       status ? h("div", { style: { fontSize: 11 } }, status) : null,
+      n ? h("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 11 } },
+            withBorder.length ? h(Dot, null) : null,
+            withBorder.length
+              ? `${withBorder.length} of ${n} selected ${withBorder.length === 1 ? "has" : "have"} a border (${names.join(", ")})`
+              : `None of the ${n} selected ${n === 1 ? "has" : "have"} a border`)
+        : null,
       h("div", { style: hint },
         "Select photos in the grid, pick a template and click Apply. Each photo gets the border as an undoable step, and it goes along with every export. ",
         "Fine-tune a single photo in Develop."));
@@ -630,23 +689,44 @@ export function activate(api) {
         "The frame follows your crop, so pick 1:1 or 3:2 in Crop for that shape."));
   }
 
+  const DOT_STYLE = {
+    display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+    background: "var(--color-success, #3fb950)", boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+  };
+  function Dot({ title }) {
+    return h("span", { title, "aria-label": title, role: "img", style: DOT_STYLE });
+  }
+
   // Green dot in the panel header while a border is on, so it shows when the
-  // panel is collapsed too. The tooltip names the matching template.
+  // panel is collapsed too. In Develop: the open photo; in the Library: the
+  // selection. The tooltip names the template.
   function ActiveDot() {
     const bag = useBag();
     const module = useUIStore ? useUIStore((st) => st.activeModule) : "develop";
-    if (module === "library") return null;
-    if (!(Number(readBag(bag, K.size)) > 0)) return null;
-    const t = loadTemplates().find((x) => templateMatches(x, bag));
-    const label = t ? `Border on: ${t.name}` : "Border on";
-    return h("span", {
-      title: label, "aria-label": label, role: "img",
-      style: {
-        display: "inline-block", width: 8, height: 8, borderRadius: "50%",
-        background: "var(--color-success, #3fb950)",
-        boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
-      },
-    });
+    const selected = useCatalogStore ? useCatalogStore((st) => st.selectedIds) : null;
+    const map = useBorderMap ? useBorderMap((st) => st.map) : {};
+    if (module === "library") {
+      const ids = selected ? Array.from(selected) : [];
+      const on = ids.filter((id) => map[id]);
+      if (!on.length) return null;
+      const names = Array.from(new Set(on.map((id) => map[id].name || "Custom")));
+      return h(Dot, { title: `Border on ${on.length} of ${ids.length} selected: ${names.join(", ")}` });
+    }
+    const info = borderInfo(bag, loadTemplates());
+    if (!info) return null;
+    return h(Dot, { title: info.name ? `Border on: ${info.name}` : "Border on" });
+  }
+
+  // Grid and Filmstrip: a green dot on every photo that carries a border.
+  function GridBadge({ photo }) {
+    const info = useBorderOf(photo.id);
+    if (!info) return null;
+    const title = info.name ? `Border: ${info.name}` : "Border";
+    const dot = h("span", { style: { ...DOT_STYLE, width: 7, height: 7 } });
+    return comps.ThumbnailBadge ? h(comps.ThumbnailBadge, { title }, dot) : h("span", { title }, dot);
+  }
+  if (typeof api.registerThumbnailBadge === "function" && useBorderMap) {
+    api.registerThumbnailBadge({ id: `${EXT}.badge`, component: GridBadge, order: 80 });
   }
 
   function resetAll() {
@@ -669,5 +749,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.4.0 loaded");
+  console.log("[safelight-border] v2.5.0 loaded");
 }

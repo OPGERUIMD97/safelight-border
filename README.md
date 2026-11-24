@@ -34,7 +34,7 @@ Dock the Border panel in the Library to put a border on many photos at once:
 3. Click **Apply to N photos**. **Remove border** takes it off again.
 4. Export as usual: each photo carries its own border.
 
-Every photo gets one undoable step in its history. In the Library the panel only works on the selection, never on the photo that is open in Develop. Fine-tune a single photo in Develop.
+A green dot on the thumbnail marks every photo with a border (hover for the template), and the panel shows how many of the selected photos have one. Every photo gets one undoable step in its history. In the Library the panel only works on the selection, never on the photo that is open in Develop. Fine-tune a single photo in Develop.
 
 ## Notes
 
@@ -43,6 +43,10 @@ Every photo gets one undoable step in its history. In the Library the panel only
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
+
+### 2.5.0
+- Green dot on Library and Filmstrip thumbnails for photos with a border, with the template in the tooltip.
+- In the Library the panel header dot and a status line show how many selected photos have a border.
 
 ### 2.4.0
 - Library: apply a template to all selected photos with one click, or remove the border. The panel no longer changes the photo that is open in Develop while you are in the Library.
