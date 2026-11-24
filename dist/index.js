@@ -1,4 +1,4 @@
-// Safelight Border v2.0.0
+// Safelight Border v2.1.0
 // A border around the photo, drawn inside the frame ("inside – fit"): the photo
 // is scaled into the frame and the space around it becomes the border, so the
 // photo keeps its size. Two processing stages, so the border shows in Develop,
@@ -181,6 +181,62 @@ export const PAINT_STAGE_DEF = {
   dormantWhen: { bOn: false },
 };
 
+// ── Templates ──────────────────────────────────────────────────────────────
+// A template is a named set of border settings, kept in this browser profile.
+const TEMPLATES_KEY = "safelight-border-v2-templates";
+const TEMPLATE_FIELDS = ["size", "mode", "offX", "offY", "line", "lineOff", "color", "lineColor"];
+
+export const STARTER_TEMPLATES = [
+  { id: "white-thin", name: "White, thin", size: 3, mode: MODE_CONSTANT, offX: 0.5, offY: 0.5, line: 0, lineOff: 50, color: [1, 1, 1], lineColor: [0, 0, 0] },
+  { id: "white-wide", name: "White, wide", size: 8, mode: MODE_CONSTANT, offX: 0.5, offY: 0.5, line: 0, lineOff: 50, color: [1, 1, 1], lineColor: [0, 0, 0] },
+  { id: "black-thin", name: "Black, thin", size: 3, mode: MODE_CONSTANT, offX: 0.5, offY: 0.5, line: 0, lineOff: 50, color: [0, 0, 0], lineColor: [1, 1, 1] },
+  { id: "white-line", name: "White with black line", size: 8, mode: MODE_CONSTANT, offX: 0.5, offY: 0.5, line: 8, lineOff: 30, color: [1, 1, 1], lineColor: [0, 0, 0] },
+  { id: "gallery-whole", name: "Whole photo, white", size: 6, mode: MODE_WHOLE, offX: 0.5, offY: 0.4, line: 0, lineOff: 50, color: [1, 1, 1], lineColor: [0, 0, 0] },
+];
+
+export function templateFromBag(bag, name, id) {
+  const t = { id: id || String(Date.now()), name };
+  for (const f of TEMPLATE_FIELDS) {
+    const v = bag && bag[K[f]] !== undefined ? bag[K[f]] : DEFAULTS[K[f]];
+    t[f] = Array.isArray(v) ? v.slice(0, 3).map(Number) : Number(v);
+  }
+  return t;
+}
+
+export function templateToPatch(t) {
+  const patch = {};
+  for (const f of TEMPLATE_FIELDS) {
+    const v = t[f] !== undefined ? t[f] : DEFAULTS[K[f]];
+    patch[K[f]] = Array.isArray(v) ? v.slice(0, 3).map(Number) : Number(v);
+  }
+  patch[K.on] = Number(patch[K.size]) > 0;
+  return patch;
+}
+
+export function templateMatches(t, bag) {
+  const cur = templateFromBag(bag, "", "");
+  return TEMPLATE_FIELDS.every((f) => {
+    const a = cur[f], b = t[f] !== undefined ? t[f] : DEFAULTS[K[f]];
+    if (Array.isArray(a)) return a.every((x, i) => Math.abs(x - Number(b[i])) < 0.002);
+    return Math.abs(a - Number(b)) < 0.0005;
+  });
+}
+
+function loadTemplates() {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_KEY);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) return list.filter((t) => t && t.id && t.name);
+    }
+  } catch (e) {}
+  return STARTER_TEMPLATES.map((t) => ({ ...t }));
+}
+
+function saveTemplates(list) {
+  try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
 // ── Colour helpers ─────────────────────────────────────────────────────────
 export function hexToRgb(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
@@ -318,12 +374,65 @@ export function activate(api) {
           : null));
   }
 
+  function TemplateRow() {
+    const bag = useBag();
+    const [list, setList] = useState(loadTemplates);
+    const [naming, setNaming] = useState(false);
+    const [name, setName] = useState("");
+    const current = list.find((t) => templateMatches(t, bag));
+    const options = [
+      ...(current ? [] : [{ value: "", label: "Custom" }]),
+      ...list.map((t) => ({ value: t.id, label: t.name })),
+    ];
+    const apply = (id) => {
+      const t = list.find((x) => x.id === id);
+      if (!t) return;
+      write(templateToPatch(t));
+      commit(`Border template: ${t.name}`);
+    };
+    const update = (next) => { setList(next); saveTemplates(next); };
+    const saveNew = () => {
+      const n = name.trim();
+      if (!n) return;
+      update([...list, templateFromBag(store()?.paramBag, n)]);
+      setNaming(false);
+      setName("");
+    };
+    const remove = () => {
+      if (!current) return;
+      update(list.filter((t) => t.id !== current.id));
+    };
+    const small = {
+      fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
+      border: "1px solid var(--color-border)", background: "transparent", color: "inherit",
+    };
+    return h("div", { style: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 } },
+      h(SelectRow, { label: "Template", value: current ? current.id : "", options, onChange: apply }),
+      naming
+        ? h("div", { style: { display: "flex", gap: 6 } },
+            h("input", {
+              autoFocus: true, value: name, placeholder: "Template name",
+              onChange: (e) => setName(e.target.value),
+              onKeyDown: (e) => { if (e.key === "Enter") saveNew(); if (e.key === "Escape") setNaming(false); },
+              style: { flex: 1, fontSize: 12, padding: "3px 6px", borderRadius: 4,
+                       border: "1px solid var(--color-border)", background: "var(--color-surface-0)", color: "inherit" },
+            }),
+            h("button", { type: "button", style: small, onClick: saveNew }, "Save"),
+            h("button", { type: "button", style: small, onClick: () => setNaming(false) }, "Cancel"))
+        : h("div", { style: { display: "flex", gap: 6, justifyContent: "flex-end" } },
+            h("button", { type: "button", style: small, onClick: () => { setName(""); setNaming(true); } }, "Save as template"),
+            current
+              ? h("button", { type: "button", style: small, onClick: remove, title: `Delete "${current.name}"` }, "Delete")
+              : null));
+  }
+
   function BorderPanel() {
     const bag = useBag();
     const mode = Number(readBag(bag, K.mode)) > 0.5 ? MODE_WHOLE : MODE_CONSTANT;
     const wrap = { display: "flex", flexDirection: "column", gap: 6, padding: "6px 10px 10px" };
     const hint = { fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.4 };
     return h("div", { style: wrap },
+      h(TemplateRow, null),
       h(SliderRow, { label: "Border size", keyName: K.size, min: 0, max: 49, step: 0.1, def: 0, suffix: "%" }),
       h(SelectRow, {
         label: "Aspect",
@@ -366,5 +475,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.0.0 loaded");
+  console.log("[safelight-border] v2.1.0 loaded");
 }

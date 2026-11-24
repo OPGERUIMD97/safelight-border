@@ -72,3 +72,17 @@ for (const u of FIT_STAGE_DEF.uniforms) assert.ok(FIT_STAGE_DEF.glsl.includes(u.
 for (const u of PAINT_STAGE_DEF.uniforms.filter((u) => u.key !== "bOn")) assert.ok(PAINT_STAGE_DEF.glsl.includes(u.key), u.key);
 
 console.log("all layout tests passed");
+
+// Templates: bag → template → patch round-trips and matches.
+import { templateFromBag, templateToPatch, templateMatches, STARTER_TEMPLATES } from "../dist/index.js";
+{
+  const bag = { "safelight-border.fit.bSize": 7, "safelight-border.fit.bLine": 10, "safelight-border.paint.bColor": [0.2, 0.3, 0.4] };
+  const t = templateFromBag(bag, "Mine", "x");
+  assert.equal(t.size, 7); assert.deepEqual(t.color, [0.2, 0.3, 0.4]); assert.equal(t.offX, 0.5);
+  const patch = templateToPatch(t);
+  assert.equal(patch["safelight-border.paint.bOn"], true);
+  assert.ok(templateMatches(t, patch));
+  assert.ok(!templateMatches(STARTER_TEMPLATES[0], patch));
+  for (const s of STARTER_TEMPLATES) assert.ok(templateMatches(s, templateToPatch(s)), s.name);
+}
+console.log("template tests passed");

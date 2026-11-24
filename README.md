@@ -16,6 +16,7 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 
 | Control | What it does |
 | --- | --- |
+| Template | Pick a saved border; **Save as template** stores the current settings under a name, **Delete** removes the selected one |
 | Border size | Width of the border, in % of the frame's short edge |
 | Aspect | **Constant border**: the same width on every side; the photo fills the window and loses a sliver on one axis. **Whole photo**: the whole photo stays visible; the extra space goes where the position says |
 | Horizontal / Vertical position | Center, 1/3, 3/8, 5/8 or 2/3; sets the offset below |
@@ -27,15 +28,17 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 ## Notes
 
 - The frame follows your crop. For a square or 3:2 result, pick that ratio in **Crop** first.
-- Save a look you use often as a Safelight preset: the border settings go with it.
+- Templates live in this Safelight profile and start with five examples (white thin/wide, black thin, white with a black line, whole photo on white). Safelight presets also carry the border settings.
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
 
+### 2.1.0
+- Templates: pick, save and delete named borders, with five examples to start from.
+
 ### 2.0.0
-- Back as its own extension, rebuilt as a Develop panel with the controls of darktable's framing module: border size, aspect, position, frame line and colours with a pipette.
+- Back as its own extension, rebuilt as a Develop panel: border size, aspect, position, frame line and colours with a pipette.
 - Drawn inside the frame, so it shows on thumbnails and in presets as well as in exports.
-- Your old pixel templates stay available in Framing / Border's Border mode when this extension is off.
 
 ### 1.1.0
 - Discontinued in favour of Framing / Border.
