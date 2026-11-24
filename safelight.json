@@ -1,7 +1,7 @@
 {
   "id": "safelight-border",
   "name": "Border",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A border around the photo in Develop, drawn inside the frame so the photo keeps its size. Visible in Develop, on thumbnails, in presets and in every export.",
   "author": "OPGERUIMD97",
   "main": "dist/index.js",

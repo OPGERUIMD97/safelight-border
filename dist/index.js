@@ -237,6 +237,24 @@ function saveTemplates(list) {
   try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list)); } catch (e) {}
 }
 
+// The default template is marked with a star and is what "Add border" applies.
+const DEFAULT_TEMPLATE_KEY = "safelight-border-v2-default-template";
+
+export function defaultTemplate(list, id) {
+  return (Array.isArray(list) ? list : []).find((t) => t && t.id === id);
+}
+
+export function loadDefaultId() {
+  try { return localStorage.getItem(DEFAULT_TEMPLATE_KEY) || ""; } catch (e) { return ""; }
+}
+
+export function saveDefaultId(id) {
+  try {
+    if (id) localStorage.setItem(DEFAULT_TEMPLATE_KEY, id);
+    else localStorage.removeItem(DEFAULT_TEMPLATE_KEY);
+  } catch (e) {}
+}
+
 // ── Colour helpers ─────────────────────────────────────────────────────────
 export function hexToRgb(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
@@ -377,20 +395,20 @@ export function activate(api) {
   function TemplateRow() {
     const bag = useBag();
     const [list, setList] = useState(loadTemplates);
+    const [defId, setDefId] = useState(loadDefaultId);
     const [naming, setNaming] = useState(false);
     const [name, setName] = useState("");
     const current = list.find((t) => templateMatches(t, bag));
-    const options = [
-      ...(current ? [] : [{ value: "", label: "Custom" }]),
-      ...list.map((t) => ({ value: t.id, label: t.name })),
-    ];
-    const apply = (id) => {
-      const t = list.find((x) => x.id === id);
+    const def = defaultTemplate(list, defId);
+    const borderOff = !(Number(readBag(bag, K.size)) > 0);
+
+    const apply = (t) => {
       if (!t) return;
       write(templateToPatch(t));
       commit(`Border template: ${t.name}`);
     };
     const update = (next) => { setList(next); saveTemplates(next); };
+    const setDefault = (id) => { setDefId(id); saveDefaultId(id); };
     const saveNew = () => {
       const n = name.trim();
       if (!n) return;
@@ -400,30 +418,65 @@ export function activate(api) {
     };
     const remove = () => {
       if (!current) return;
+      if (current.id === defId) setDefault("");
       update(list.filter((t) => t.id !== current.id));
     };
+
     const small = {
       fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
       border: "1px solid var(--color-border)", background: "transparent", color: "inherit",
     };
+    const chip = (active) => ({
+      fontSize: 11, lineHeight: "16px", padding: "2px 10px", borderRadius: 999, cursor: "pointer",
+      whiteSpace: "nowrap",
+      border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
+      background: active ? "var(--color-accent)" : "transparent",
+      color: active ? "var(--color-on-accent, #fff)" : "inherit",
+    });
+
+    const chips = h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+      list.map((t) => {
+        const active = !!current && current.id === t.id;
+        const isDef = t.id === defId;
+        return h("button", {
+          key: t.id, type: "button", style: chip(active), onClick: () => apply(t),
+          title: isDef ? `${t.name} (default)` : t.name, "aria-pressed": active,
+        }, isDef ? `★ ${t.name}` : t.name);
+      }),
+      current ? null : h("span", { style: { ...chip(true), cursor: "default", opacity: 0.6 } }, "Custom"));
+
+    const actions = naming
+      ? h("div", { style: { display: "flex", gap: 6 } },
+          h("input", {
+            autoFocus: true, value: name, placeholder: "Template name",
+            onChange: (e) => setName(e.target.value),
+            onKeyDown: (e) => { if (e.key === "Enter") saveNew(); if (e.key === "Escape") setNaming(false); },
+            style: { flex: 1, fontSize: 12, padding: "3px 6px", borderRadius: 4,
+                     border: "1px solid var(--color-border)", background: "var(--color-surface-0)", color: "inherit" },
+          }),
+          h("button", { type: "button", style: small, onClick: saveNew }, "Save"),
+          h("button", { type: "button", style: small, onClick: () => setNaming(false) }, "Cancel"))
+      : h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" } },
+          borderOff && def
+            ? h("button", { type: "button", style: { ...small, borderColor: "var(--color-accent)" },
+                onClick: () => apply(def), title: `Apply "${def.name}"` }, `Add border (★ ${def.name})`)
+            : null,
+          current
+            ? h("button", {
+                type: "button", style: small,
+                onClick: () => setDefault(current.id === defId ? "" : current.id),
+                title: current.id === defId ? "Remove the default mark" : `Use "${current.name}" as default`,
+              }, current.id === defId ? "★ Default" : "☆ Set as default")
+            : null,
+          h("button", { type: "button", style: small, onClick: () => { setName(""); setNaming(true); } }, "Save as template"),
+          current
+            ? h("button", { type: "button", style: small, onClick: remove, title: `Delete "${current.name}"` }, "Delete")
+            : null);
+
     return h("div", { style: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 } },
-      h(SelectRow, { label: "Template", value: current ? current.id : "", options, onChange: apply }),
-      naming
-        ? h("div", { style: { display: "flex", gap: 6 } },
-            h("input", {
-              autoFocus: true, value: name, placeholder: "Template name",
-              onChange: (e) => setName(e.target.value),
-              onKeyDown: (e) => { if (e.key === "Enter") saveNew(); if (e.key === "Escape") setNaming(false); },
-              style: { flex: 1, fontSize: 12, padding: "3px 6px", borderRadius: 4,
-                       border: "1px solid var(--color-border)", background: "var(--color-surface-0)", color: "inherit" },
-            }),
-            h("button", { type: "button", style: small, onClick: saveNew }, "Save"),
-            h("button", { type: "button", style: small, onClick: () => setNaming(false) }, "Cancel"))
-        : h("div", { style: { display: "flex", gap: 6, justifyContent: "flex-end" } },
-            h("button", { type: "button", style: small, onClick: () => { setName(""); setNaming(true); } }, "Save as template"),
-            current
-              ? h("button", { type: "button", style: small, onClick: remove, title: `Delete "${current.name}"` }, "Delete")
-              : null));
+      h("span", { style: { fontSize: 12 } }, "Templates"),
+      chips,
+      actions);
   }
 
   function BorderPanel() {
@@ -475,5 +528,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.1.0 loaded");
+  console.log("[safelight-border] v2.2.0 loaded");
 }

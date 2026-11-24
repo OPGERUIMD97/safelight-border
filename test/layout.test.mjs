@@ -86,3 +86,12 @@ import { templateFromBag, templateToPatch, templateMatches, STARTER_TEMPLATES } 
   for (const s of STARTER_TEMPLATES) assert.ok(templateMatches(s, templateToPatch(s)), s.name);
 }
 console.log("template tests passed");
+
+// Default template lookup.
+import { defaultTemplate } from "../dist/index.js";
+{
+  assert.equal(defaultTemplate(STARTER_TEMPLATES, STARTER_TEMPLATES[1].id), STARTER_TEMPLATES[1]);
+  assert.equal(defaultTemplate(STARTER_TEMPLATES, "gone"), undefined);
+  assert.equal(defaultTemplate(null, "x"), undefined);
+}
+console.log("default template tests passed");

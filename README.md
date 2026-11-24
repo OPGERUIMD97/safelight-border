@@ -16,7 +16,7 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 
 | Control | What it does |
 | --- | --- |
-| Template | Pick a saved border; **Save as template** stores the current settings under a name, **Delete** removes the selected one |
+| Templates | Saved borders shown as chips; click one to apply it (the active chip is highlighted). **☆ Set as default** marks the selected template with ★, **Add border** applies the default when the photo has no border yet. **Save as template** stores the current settings under a name, **Delete** removes the selected one |
 | Border size | Width of the border, in % of the frame's short edge |
 | Aspect | **Constant border**: the same width on every side; the photo fills the window and loses a sliver on one axis. **Whole photo**: the whole photo stays visible; the extra space goes where the position says |
 | Horizontal / Vertical position | Center, 1/3, 3/8, 5/8 or 2/3; sets the offset below |
@@ -28,10 +28,14 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 ## Notes
 
 - The frame follows your crop. For a square or 3:2 result, pick that ratio in **Crop** first.
-- Templates live in this Safelight profile and start with five examples (white thin/wide, black thin, white with a black line, whole photo on white). Safelight presets also carry the border settings.
+- Templates live in this Safelight profile and start with five examples (white thin/wide, black thin, white with a black line, whole photo on white). Safelight presets also carry the border settings. The default template is never applied on its own; you add it with one click.
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
+
+### 2.2.0
+- Templates are shown as chips.
+- Mark one template as default (★) and add it with one click via **Add border**.
 
 ### 2.1.0
 - Templates: pick, save and delete named borders, with five examples to start from.
