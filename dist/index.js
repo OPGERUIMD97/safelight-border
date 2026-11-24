@@ -255,6 +255,22 @@ export function saveDefaultId(id) {
   } catch (e) {}
 }
 
+// Library: a border step appended to a photo's stored edit, the way core's
+// Paste settings does it. Cut at the cursor, seed "Original" for a photo never
+// edited, then add one step with the border keys merged over the bag.
+export function appendBorderStep(editState, photoId, patch, label, fresh, now = Date.now()) {
+  const stack0 = editState && Array.isArray(editState.stack) ? editState.stack : [];
+  const ci = editState ? editState.currentIndex : -1;
+  const cursor = Number.isInteger(ci) && ci >= 0 && ci < stack0.length ? ci : stack0.length - 1;
+  const stack = stack0.slice(0, cursor + 1);
+  if (stack.length === 0) stack.push({ timestamp: now, label: "Original", params: fresh(), paramBag: {} });
+  const top = stack[stack.length - 1];
+  stack.push({ timestamp: now, label, params: top.params, paramBag: { ...(top.paramBag || {}), ...patch } });
+  return { photoId, stack, currentIndex: stack.length - 1 };
+}
+
+export const BORDER_OFF_PATCH = { [K.size]: 0, [K.on]: false };
+
 // ── Colour helpers ─────────────────────────────────────────────────────────
 export function hexToRgb(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
@@ -279,6 +295,11 @@ export function activate(api) {
   const comps = api.components || {};
   const dev = api.develop || {};
   const useDevelopStore = api.stores?.useDevelopStore;
+  const useUIStore = api.stores?.useUIStore;
+  const useCatalogStore = api.stores?.useCatalogStore;
+  const catalogApi = api.catalog || {};
+  // Process version for a photo that was never edited (core's current one).
+  const FRESH_PROCESS_VERSION = 2;
 
   api.registerProcessingStage(FIT_STAGE_DEF);
   api.registerProcessingStage(PAINT_STAGE_DEF);
@@ -479,7 +500,107 @@ export function activate(api) {
       actions);
   }
 
+  // Library: the panel works on the selected photos, never on the photo that
+  // happens to be open in Develop.
+  async function applyToSelection(ids, patch, label, onProgress) {
+    const photos = new Map((useCatalogStore?.getState?.().photos || []).map((p) => [p.id, p]));
+    const norm = api.develop?.normalizeParams;
+    let done = 0;
+    for (const id of ids) {
+      const photo = photos.get(id);
+      if (!photo) continue;
+      const asShot = photo.exif?.colorTemperature ?? 6500;
+      const fresh = () => {
+        const base = { temperature: asShot, processVersion: FRESH_PROCESS_VERSION };
+        return typeof norm === "function" ? norm(base) : base;
+      };
+      const existing = await catalogApi.getEditState(id);
+      await catalogApi.putEditState(appendBorderStep(existing, id, patch, label, fresh));
+      catalogApi.requestThumbnail?.(id);
+      done++;
+      onProgress?.(done);
+    }
+    return done;
+  }
+
+  function LibraryPanel() {
+    const selected = useCatalogStore ? useCatalogStore((s) => s.selectedIds) : null;
+    const ids = selected ? Array.from(selected) : [];
+    const n = ids.length;
+    const [list] = useState(loadTemplates);
+    const defId = loadDefaultId();
+    const [pickId, setPickId] = useState(() => (defaultTemplate(list, defId) || list[0] || {}).id);
+    const [busy, setBusy] = useState(false);
+    const [status, setStatus] = useState("");
+    const canWrite = typeof catalogApi.getEditState === "function" && typeof catalogApi.putEditState === "function";
+    const pick = list.find((t) => t.id === pickId);
+
+    const run = async (patch, label, verb) => {
+      if (!n || busy) return;
+      setBusy(true);
+      setStatus(`${verb} 0 / ${n}…`);
+      try {
+        const done = await applyToSelection(ids, patch, label, (d) => setStatus(`${verb} ${d} / ${n}…`));
+        setStatus(`Done: ${done} photo${done === 1 ? "" : "s"}. Export as usual.`);
+      } catch (e) {
+        console.warn("[safelight-border] library apply failed:", e);
+        setStatus("Something went wrong; see the console.");
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    const chip = (active) => ({
+      fontSize: 11, lineHeight: "16px", padding: "2px 10px", borderRadius: 999, cursor: "pointer",
+      whiteSpace: "nowrap",
+      border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
+      background: active ? "var(--color-accent)" : "transparent",
+      color: active ? "var(--color-on-accent, #fff)" : "inherit",
+    });
+    const btn = (primary, disabled) => ({
+      fontSize: 11, padding: "4px 10px", borderRadius: 4, cursor: disabled ? "default" : "pointer",
+      border: `1px solid ${primary ? "var(--color-accent)" : "var(--color-border)"}`,
+      background: primary && !disabled ? "var(--color-accent)" : "transparent",
+      color: primary && !disabled ? "var(--color-on-accent, #fff)" : "inherit",
+      opacity: disabled ? 0.5 : 1,
+    });
+    const hint = { fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.4 };
+    const wrap = { display: "flex", flexDirection: "column", gap: 8, padding: "6px 10px 10px" };
+
+    if (!canWrite) {
+      return h("div", { style: wrap },
+        h("div", { style: hint }, "This Safelight version can't write borders from the Library. Open a photo in Develop to add one."));
+    }
+    const off = !n || busy || !pick;
+    return h("div", { style: wrap },
+      h("span", { style: { fontSize: 12 } }, "Templates"),
+      h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+        list.map((t) => h("button", {
+          key: t.id, type: "button", style: chip(t.id === pickId), onClick: () => setPickId(t.id),
+          "aria-pressed": t.id === pickId,
+        }, t.id === defId ? `★ ${t.name}` : t.name))),
+      h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" } },
+        h("button", {
+          type: "button", style: btn(false, !n || busy), disabled: !n || busy,
+          onClick: () => run(BORDER_OFF_PATCH, "Remove border", "Removing"),
+        }, "Remove border"),
+        h("button", {
+          type: "button", style: btn(true, off), disabled: off,
+          onClick: () => run(templateToPatch(pick), `Border template: ${pick.name}`, "Adding"),
+        }, n ? `Apply to ${n} photo${n === 1 ? "" : "s"}` : "Select photos")),
+      status ? h("div", { style: { fontSize: 11 } }, status) : null,
+      h("div", { style: hint },
+        "Select photos in the grid, pick a template and click Apply. Each photo gets the border as an undoable step, and it goes along with every export. ",
+        "Fine-tune a single photo in Develop."));
+  }
+
   function BorderPanel() {
+    const module = useUIStore ? useUIStore((s) => s.activeModule) : "develop";
+    if (module === "library") return h(LibraryPanel, null);
+    return h(DevelopPanel, null);
+  }
+
+  function DevelopPanel() {
     const bag = useBag();
     const mode = Number(readBag(bag, K.mode)) > 0.5 ? MODE_WHOLE : MODE_CONSTANT;
     const wrap = { display: "flex", flexDirection: "column", gap: 6, padding: "6px 10px 10px" };
@@ -513,6 +634,8 @@ export function activate(api) {
   // panel is collapsed too. The tooltip names the matching template.
   function ActiveDot() {
     const bag = useBag();
+    const module = useUIStore ? useUIStore((st) => st.activeModule) : "develop";
+    if (module === "library") return null;
     if (!(Number(readBag(bag, K.size)) > 0)) return null;
     const t = loadTemplates().find((x) => templateMatches(x, bag));
     const label = t ? `Border on: ${t.name}` : "Border on";
@@ -546,5 +669,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.3.0 loaded");
+  console.log("[safelight-border] v2.4.0 loaded");
 }

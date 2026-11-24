@@ -25,6 +25,17 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 | Frame line offset | Where the line sits: 0% against the photo, 100% at the outer edge |
 | Border colour / Frame line colour | Colour swatch, or the pipette to pick a colour from the photo |
 
+## In the Library
+
+Dock the Border panel in the Library to put a border on many photos at once:
+
+1. Select photos in the grid.
+2. Pick a template chip (the default ★ is picked first).
+3. Click **Apply to N photos**. **Remove border** takes it off again.
+4. Export as usual: each photo carries its own border.
+
+Every photo gets one undoable step in its history. In the Library the panel only works on the selection, never on the photo that is open in Develop. Fine-tune a single photo in Develop.
+
 ## Notes
 
 - The frame follows your crop. For a square or 3:2 result, pick that ratio in **Crop** first.
@@ -32,6 +43,9 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
+
+### 2.4.0
+- Library: apply a template to all selected photos with one click, or remove the border. The panel no longer changes the photo that is open in Develop while you are in the Library.
 
 ### 2.3.0
 - A green dot in the panel header shows when a border is on, also when the panel is collapsed. Hover it to see which template is active.

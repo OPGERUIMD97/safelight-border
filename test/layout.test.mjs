@@ -95,3 +95,27 @@ import { defaultTemplate } from "../dist/index.js";
   assert.equal(defaultTemplate(null, "x"), undefined);
 }
 console.log("default template tests passed");
+
+// Library: a border step goes on top of the stored edit, cut at the cursor.
+import { appendBorderStep, BORDER_OFF_PATCH } from "../dist/index.js";
+{
+  const fresh = () => ({ temperature: 5000, processVersion: 2 });
+  const patch = templateToPatch(STARTER_TEMPLATES[0]);
+  const a = appendBorderStep(null, "p1", patch, "Border template: White, thin", fresh, 1);
+  assert.deepEqual(a.stack.map((s) => s.label), ["Original", "Border template: White, thin"]);
+  assert.equal(a.currentIndex, 1);
+  assert.equal(a.stack[1].paramBag["safelight-border.fit.bSize"], 3);
+  const es = { photoId: "p2", currentIndex: 1, stack: [
+    { label: "Original", params: { exposure: 0 }, paramBag: {} },
+    { label: "Exposure", params: { exposure: 1 }, paramBag: { "other.x": 5 } },
+    { label: "Undone", params: { exposure: 2 }, paramBag: {} },
+  ] };
+  const b = appendBorderStep(es, "p2", patch, "B", fresh, 1);
+  assert.deepEqual(b.stack.map((s) => s.label), ["Original", "Exposure", "B"]);
+  assert.equal(b.stack[2].params.exposure, 1);
+  assert.equal(b.stack[2].paramBag["other.x"], 5);
+  const c = appendBorderStep(b, "p2", BORDER_OFF_PATCH, "Remove border", fresh, 1);
+  assert.equal(c.stack[3].paramBag["safelight-border.fit.bSize"], 0);
+  assert.equal(c.stack[3].paramBag["safelight-border.paint.bOn"], false);
+}
+console.log("library step tests passed");
