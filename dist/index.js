@@ -588,22 +588,30 @@ export function activate(api) {
     const photos = new Map((useCatalogStore?.getState?.().photos || []).map((p) => [p.id, p]));
     const norm = api.develop?.normalizeParams;
     let done = 0;
+    const failed = [];
     for (const id of ids) {
+      // A photo that isn't in the loaded list (another folder, a hidden stack
+      // member) still gets its border; only the as-shot white balance of a
+      // never-edited photo falls back to daylight.
       const photo = photos.get(id);
-      if (!photo) continue;
-      const asShot = photo.exif?.colorTemperature ?? 6500;
+      const asShot = photo?.exif?.colorTemperature ?? 6500;
       const fresh = () => {
         const base = { temperature: asShot, processVersion: FRESH_PROCESS_VERSION };
         return typeof norm === "function" ? norm(base) : base;
       };
-      const existing = await catalogApi.getEditState(id);
-      await catalogApi.putEditState(appendBorderStep(existing, id, patch, label, fresh));
-      catalogApi.requestThumbnail?.(id);
-      setBorder(id, borderInfo(patch[K.size] > 0 ? patch : {}, loadTemplates()));
-      done++;
-      onProgress?.(done);
+      try {
+        const existing = await catalogApi.getEditState(id);
+        await catalogApi.putEditState(appendBorderStep(existing, id, patch, label, fresh));
+        catalogApi.requestThumbnail?.(id);
+        setBorder(id, borderInfo(patch[K.size] > 0 ? patch : {}, loadTemplates()));
+        done++;
+      } catch (e) {
+        console.warn(`[safelight-border] could not write photo ${id}:`, e);
+        failed.push(id);
+      }
+      onProgress?.(done + failed.length);
     }
-    return done;
+    return { done, failed: failed.length };
   }
 
   function LibraryPanel() {
@@ -628,8 +636,10 @@ export function activate(api) {
       setBusy(true);
       setStatus(`${verb} 0 / ${n}…`);
       try {
-        const done = await applyToSelection(ids, patch, label, (d) => setStatus(`${verb} ${d} / ${n}…`));
-        setStatus(`Done: ${done} photo${done === 1 ? "" : "s"}. Export as usual.`);
+        const { done, failed } = await applyToSelection(ids, patch, label, (d) => setStatus(`${verb} ${d} / ${n}…`));
+        setStatus(failed
+          ? `Done: ${done} of ${n} photos; ${failed} could not be changed (see the console).`
+          : `Done: ${done} photo${done === 1 ? "" : "s"}. Export as usual.`);
       } catch (e) {
         console.warn("[safelight-border] library apply failed:", e);
         setStatus("Something went wrong; see the console.");
@@ -784,5 +794,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.6.0 loaded");
+  console.log("[safelight-border] v2.6.1 loaded");
 }

@@ -44,6 +44,9 @@ A green dot on the thumbnail marks every photo with a border (hover for the temp
 
 ## Changelog
 
+### 2.6.1
+- Library: every selected photo gets the border, also one that isn't in the loaded photo list. Photos that can't be changed are counted in the status line.
+
 ### 2.6.0
 - **Reset templates**: back to the built-in templates (your own and the default mark are removed, after a confirmation).
 
