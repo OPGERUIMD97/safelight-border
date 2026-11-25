@@ -248,6 +248,17 @@ export function loadDefaultId() {
   try { return localStorage.getItem(DEFAULT_TEMPLATE_KEY) || ""; } catch (e) { return ""; }
 }
 
+// Built-in templates can be deleted (Reset templates brings them back) but not renamed.
+export function isBuiltInTemplate(t) {
+  return !!t && STARTER_TEMPLATES.some((x) => x.id === t.id);
+}
+
+export function renameTemplate(list, id, name) {
+  const n = String(name || "").trim();
+  if (!n) return list;
+  return list.map((t) => (t.id === id && !isBuiltInTemplate(t) ? { ...t, name: n } : t));
+}
+
 // Back to the built-in templates: your own are removed and the default mark is cleared.
 export function resetTemplates() {
   const list = STARTER_TEMPLATES.map((t) => ({ ...t, color: [...t.color], lineColor: [...t.lineColor] }));
@@ -474,6 +485,7 @@ export function activate(api) {
     const [defId, setDefId] = useState(loadDefaultId);
     const [naming, setNaming] = useState(false);
     const [confirmReset, setConfirmReset] = useState(false);
+    const [renaming, setRenaming] = useState(false);
     const [name, setName] = useState("");
     const current = list.find((t) => templateMatches(t, bag));
     const def = defaultTemplate(list, defId);
@@ -489,10 +501,13 @@ export function activate(api) {
     const saveNew = () => {
       const n = name.trim();
       if (!n) return;
-      update([...list, templateFromBag(store()?.paramBag, n)]);
+      if (renaming && current) update(renameTemplate(list, current.id, n));
+      else update([...list, templateFromBag(store()?.paramBag, n)]);
       setNaming(false);
+      setRenaming(false);
       setName("");
     };
+    const cancelName = () => { setNaming(false); setRenaming(false); };
     const remove = () => {
       if (!current) return;
       if (current.id === defId) setDefault("");
@@ -525,14 +540,14 @@ export function activate(api) {
     const actions = naming
       ? h("div", { style: { display: "flex", gap: 6 } },
           h("input", {
-            autoFocus: true, value: name, placeholder: "Template name",
+            autoFocus: true, value: name, placeholder: renaming ? "New name" : "Template name",
             onChange: (e) => setName(e.target.value),
-            onKeyDown: (e) => { if (e.key === "Enter") saveNew(); if (e.key === "Escape") setNaming(false); },
+            onKeyDown: (e) => { if (e.key === "Enter") saveNew(); if (e.key === "Escape") cancelName(); },
             style: { flex: 1, fontSize: 12, padding: "3px 6px", borderRadius: 4,
                      border: "1px solid var(--color-border)", background: "var(--color-surface-0)", color: "inherit" },
           }),
-          h("button", { type: "button", style: small, onClick: saveNew }, "Save"),
-          h("button", { type: "button", style: small, onClick: () => setNaming(false) }, "Cancel"))
+          h("button", { type: "button", style: small, onClick: saveNew }, renaming ? "Rename" : "Save"),
+          h("button", { type: "button", style: small, onClick: cancelName }, "Cancel"))
       : h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" } },
           borderOff && def
             ? h("button", { type: "button", style: { ...small, borderColor: "var(--color-accent)" },
@@ -545,7 +560,13 @@ export function activate(api) {
                 title: current.id === defId ? "Remove the default mark" : `Use "${current.name}" as default`,
               }, current.id === defId ? "★ Default" : "☆ Set as default")
             : null,
-          h("button", { type: "button", style: small, onClick: () => { setName(""); setNaming(true); } }, "Save as template"),
+          current && !isBuiltInTemplate(current)
+            ? h("button", {
+                type: "button", style: small, title: `Rename "${current.name}"`,
+                onClick: () => { setName(current.name); setRenaming(true); setNaming(true); },
+              }, "Rename")
+            : null,
+          h("button", { type: "button", style: small, onClick: () => { setName(""); setRenaming(false); setNaming(true); } }, "Save as template"),
           current
             ? h("button", { type: "button", style: small, onClick: remove, title: `Delete "${current.name}"` }, "Delete")
             : null);
@@ -794,5 +815,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.6.1 loaded");
+  console.log("[safelight-border] v2.7.0 loaded");
 }

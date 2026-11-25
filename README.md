@@ -16,7 +16,7 @@ Then open **Develop ▸ Border**. Safelight 3.2.6 or newer.
 
 | Control | What it does |
 | --- | --- |
-| Templates | Saved borders shown as chips; click one to apply it (the active chip is highlighted). **☆ Set as default** marks the selected template with ★, **Add border** applies the default when the photo has no border yet. **Save as template** stores the current settings under a name, **Delete** removes the selected one. **Reset templates** brings back the built-in templates and removes your own |
+| Templates | Saved borders shown as chips; click one to apply it (the active chip is highlighted). **☆ Set as default** marks the selected template with ★, **Add border** applies the default when the photo has no border yet. **Save as template** stores the current settings under a name, **Rename** renames one of your own templates (built-in templates can't be renamed), **Delete** removes the selected one. **Reset templates** brings back the built-in templates and removes your own |
 | Border size | Width of the border, in % of the frame's short edge |
 | Aspect | **Constant border**: the same width on every side; the photo fills the window and loses a sliver on one axis. **Whole photo**: the whole photo stays visible; the extra space goes where the position says |
 | Horizontal / Vertical position | Center, 1/3, 3/8, 5/8 or 2/3; sets the offset below |
@@ -43,6 +43,9 @@ A green dot on the thumbnail marks every photo with a border (hover for the temp
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
+
+### 2.7.0
+- **Rename** your own templates. Built-in templates can only be deleted; **Reset templates** brings them back.
 
 ### 2.6.1
 - Library: every selected photo gets the border, also one that isn't in the loaded photo list. Photos that can't be changed are counted in the status line.

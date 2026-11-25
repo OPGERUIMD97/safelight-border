@@ -132,3 +132,16 @@ import { resetTemplates, loadDefaultId, saveDefaultId, saveTemplates, loadTempla
   list[0].color[0] = 0.5; assert.equal(STARTER_TEMPLATES[0].color[0], 1);
 }
 console.log("reset tests passed");
+
+// Rename: own templates only.
+import { renameTemplate, isBuiltInTemplate } from "../dist/index.js";
+{
+  const list = [...STARTER_TEMPLATES, { id: "mine", name: "Mine" }];
+  const out = renameTemplate(list, "mine", "  Gallery  ");
+  assert.equal(out.find((t) => t.id === "mine").name, "Gallery");
+  const b = renameTemplate(list, STARTER_TEMPLATES[0].id, "X");
+  assert.equal(b[0].name, STARTER_TEMPLATES[0].name);
+  assert.equal(renameTemplate(list, "mine", "  "), list);
+  assert.ok(isBuiltInTemplate(STARTER_TEMPLATES[2])); assert.ok(!isBuiltInTemplate({ id: "mine" }));
+}
+console.log("rename tests passed");
