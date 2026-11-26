@@ -1,7 +1,7 @@
 {
   "id": "safelight-border",
   "name": "Border",
-  "version": "2.8.1",
+  "version": "2.8.2",
   "description": "A border around the photo in Develop, drawn inside the frame so the photo keeps its size. Visible in Develop, on thumbnails, in presets and in every export.",
   "author": "OPGERUIMD97",
   "main": "dist/index.js",
@@ -42,7 +42,7 @@
         { "name": "apply", "summary": "Apply a template, or the default when no name is given" },
         { "name": "off", "summary": "Remove the border" },
         { "name": "set", "summary": "Set the border from size= and other settings" },
-        { "name": "export", "summary": "Export the photos with the export defaults. Also a word after apply, set or off" }
+        { "name": "export", "summary": "Export the photos. One photo asks for a filename. Several photos ask for a folder and every file is written there" }
       ]
     }
   ]

@@ -696,17 +696,32 @@ export function activate(api) {
       ctx.print("This Safelight can't export from the terminal.");
       return;
     }
+    let settings = exp.getDefaultSettings();
+    let destDir;
+    if (photos.length > 1) {
+      if (!api.project || typeof api.project.pickDirectory !== "function") {
+        ctx.print("This Safelight can't choose a folder from the terminal.");
+        return;
+      }
+      destDir = await api.project.pickDirectory("safelight-export");
+      if (!destDir) {
+        ctx.print("Export cancelled.");
+        return;
+      }
+      settings = { ...settings, delivery: "folder", bundle: false };
+    }
     const line = typeof ctx.progress === "function" ? ctx.progress("Exporting") : null;
     try {
-      const result = await exp.exportPhotos(photos, exp.getDefaultSettings(), (p) => {
+      const result = await exp.exportPhotos(photos, settings, (p) => {
         const done = p?.done ?? 0;
         const total = p?.total || photos.length;
         line?.update?.(`Exporting ${done} / ${total}${p?.filename ? `: ${p.filename}` : ""}`, total ? done / total : undefined);
-      }, undefined, { signal: ctx.signal });
+      }, destDir, { signal: ctx.signal });
       line?.done?.();
       const n = result?.exported ?? 0;
       const failed = result?.failed?.length ?? 0;
-      ctx.print(failed ? `Exported ${n}. ${failed} could not be written.` : `Exported ${n} file${n === 1 ? "" : "s"}.`);
+      const where = destDir && destDir.name ? ` in ${destDir.name}` : "";
+      ctx.print(failed ? `Exported ${n}${where}. ${failed} could not be written.` : `Exported ${n} file${n === 1 ? "" : "s"}${where}.`);
       if (result?.withoutStages) ctx.print(`${result.withoutStages} file${result.withoutStages === 1 ? "" : "s"} went out without some stages.`);
       if (result?.stopped) ctx.print(String(result.stopped));
     } catch (e) {
@@ -816,7 +831,7 @@ export function activate(api) {
         { name: "apply", summary: "Apply a template, or the default when no name is given" },
         { name: "off", summary: "Remove the border" },
         { name: "set", summary: "Set the border from size= and other settings" },
-        { name: "export", summary: "Export the photos with the export defaults. Also a word after apply, set or off" },
+        { name: "export", summary: "Export the photos. One photo asks for a filename. Several photos ask for a folder and every file is written there" },
       ],
       run: borderCommand,
     });
@@ -1002,5 +1017,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.8.1 loaded");
+  console.log("[safelight-border] v2.8.2 loaded");
 }
