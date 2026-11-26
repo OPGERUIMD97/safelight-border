@@ -47,6 +47,8 @@ With the [Terminal](https://github.com/anthonyreimche/Terminal) extension on, `b
 | `border apply "White, thin"` | Applies that template. With no name, applies the default |
 | `border set size=3 color=#ffffff` | Sets the border directly. `mode` is `constant` or `whole` |
 | `border off` | Removes the border |
+| `border apply "White, thin" export` | Applies the template, then exports those photos with the Export defaults |
+| `border export` | Exports the open photo or the selection as they are |
 
 ## Notes
 
@@ -55,6 +57,9 @@ With the [Terminal](https://github.com/anthonyreimche/Terminal) extension on, `b
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
+
+### 2.8.1
+- `export` after `apply`, `set` or `off` writes the files with the Export defaults. `border export` exports without changing the border.
 
 ### 2.8.0
 - A `border` command for the Terminal: status, templates, apply, set and off, on the open photo or the Library selection.

@@ -690,9 +690,36 @@ export function activate(api) {
     return photo?.filename || photo?.name || photo?.id || "photo";
   }
 
+  async function exportAfter(ctx, photos) {
+    const exp = api.export;
+    if (!exp || typeof exp.exportPhotos !== "function" || typeof exp.getDefaultSettings !== "function") {
+      ctx.print("This Safelight can't export from the terminal.");
+      return;
+    }
+    const line = typeof ctx.progress === "function" ? ctx.progress("Exporting") : null;
+    try {
+      const result = await exp.exportPhotos(photos, exp.getDefaultSettings(), (p) => {
+        const done = p?.done ?? 0;
+        const total = p?.total || photos.length;
+        line?.update?.(`Exporting ${done} / ${total}${p?.filename ? `: ${p.filename}` : ""}`, total ? done / total : undefined);
+      }, undefined, { signal: ctx.signal });
+      line?.done?.();
+      const n = result?.exported ?? 0;
+      const failed = result?.failed?.length ?? 0;
+      ctx.print(failed ? `Exported ${n}. ${failed} could not be written.` : `Exported ${n} file${n === 1 ? "" : "s"}.`);
+      if (result?.withoutStages) ctx.print(`${result.withoutStages} file${result.withoutStages === 1 ? "" : "s"} went out without some stages.`);
+      if (result?.stopped) ctx.print(String(result.stopped));
+    } catch (e) {
+      line?.done?.();
+      ctx.print(e && e.message ? e.message : "Export failed.");
+    }
+  }
+
   async function borderCommand(ctx) {
-    const words = Array.isArray(ctx.words) ? ctx.words : [];
-    const verb = String(words[0] || "status").toLowerCase();
+    const raw = Array.isArray(ctx.words) ? ctx.words.slice() : [];
+    const doExport = raw.length > 0 && String(raw[raw.length - 1]).toLowerCase() === "export";
+    const words = doExport ? raw.slice(0, -1) : raw;
+    const verb = String(words[0] || (doExport ? "export" : "status")).toLowerCase();
     const rest = words.slice(1);
     if (verb === "templates") {
       const list = loadTemplates();
@@ -702,7 +729,7 @@ export function activate(api) {
       return;
     }
     const photos = Array.isArray(ctx.photos) ? ctx.photos.filter((p) => p && p.id) : [];
-    const needsPhoto = verb === "status" || verb === "off" || verb === "remove" || verb === "apply" || verb === "set";
+    const needsPhoto = verb === "status" || verb === "off" || verb === "remove" || verb === "apply" || verb === "set" || verb === "export";
     if (needsPhoto && !photos.length) {
       ctx.print("No photo. Open one in Develop, or select photos in the Library.");
       return;
@@ -726,9 +753,14 @@ export function activate(api) {
         ? `${what} ${done} of ${photos.length}. ${failed} could not be changed.`
         : `${what} ${done} photo${done === 1 ? "" : "s"}.`);
     };
+    if (verb === "export") {
+      await exportAfter(ctx, photos);
+      return;
+    }
     if (verb === "off" || verb === "remove") {
       const { done, failed } = await applyToSelection(photos.map((p) => p.id), BORDER_OFF_PATCH, "Remove border");
       report(done, failed, "Removed the border on");
+      if (doExport && done > 0 && !failed) await exportAfter(ctx, photos);
       return;
     }
     if (verb === "apply") {
@@ -741,6 +773,7 @@ export function activate(api) {
       }
       const { done, failed } = await applyToSelection(photos.map((p) => p.id), templateToPatch(t), `Border template: ${t.name}`);
       report(done, failed, `Applied "${t.name}" to`);
+      if (doExport && done > 0 && !failed) await exportAfter(ctx, photos);
       return;
     }
     if (verb === "set") {
@@ -752,9 +785,10 @@ export function activate(api) {
       }
       const { done, failed } = await applyToSelection(photos.map((p) => p.id), borderPatchFromSettings(parsed.fields), "Border");
       report(done, failed, parsed.fields.size > 0 ? "Set the border on" : "Removed the border on");
+      if (doExport && done > 0 && !failed) await exportAfter(ctx, photos);
       return;
     }
-    ctx.print("Try: border status, border templates, border apply \"White, thin\", border set size=3, border off.");
+    ctx.print("Try: border apply \"White, thin\" export, border set size=3 export, border export, border off.");
   }
 
   if (api.commands && typeof api.commands.register === "function") {
@@ -767,11 +801,13 @@ export function activate(api) {
         "border apply [name]",
         "border off",
         "border set size=<0-49> [mode=constant|whole] [color=#rrggbb] [linecolor=#rrggbb] [line=<0-100>] [x=<0-1>] [y=<0-1>]",
+        "border apply [name] export",
+        "border export",
       ],
       examples: [
         "border status",
-        "border apply \"White, thin\"",
-        "border set size=3 color=#ffffff",
+        "border apply \"White, thin\" export",
+        "border set size=3 color=#ffffff export",
         "border off",
       ],
       subcommands: [
@@ -780,6 +816,7 @@ export function activate(api) {
         { name: "apply", summary: "Apply a template, or the default when no name is given" },
         { name: "off", summary: "Remove the border" },
         { name: "set", summary: "Set the border from size= and other settings" },
+        { name: "export", summary: "Export the photos with the export defaults. Also a word after apply, set or off" },
       ],
       run: borderCommand,
     });
@@ -965,5 +1002,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.8.0 loaded");
+  console.log("[safelight-border] v2.8.1 loaded");
 }

@@ -1,7 +1,7 @@
 {
   "id": "safelight-border",
   "name": "Border",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "A border around the photo in Develop, drawn inside the frame so the photo keeps its size. Visible in Develop, on thumbnails, in presets and in every export.",
   "author": "OPGERUIMD97",
   "main": "dist/index.js",
@@ -26,12 +26,14 @@
         "border templates",
         "border apply [name]",
         "border off",
-        "border set size=<0-49> [mode=constant|whole] [color=#rrggbb] [linecolor=#rrggbb] [line=<0-100>] [x=<0-1>] [y=<0-1>]"
+        "border set size=<0-49> [mode=constant|whole] [color=#rrggbb] [linecolor=#rrggbb] [line=<0-100>] [x=<0-1>] [y=<0-1>]",
+        "border apply [name] export",
+        "border export"
       ],
       "examples": [
         "border status",
-        "border apply \"White, thin\"",
-        "border set size=3 color=#ffffff",
+        "border apply \"White, thin\" export",
+        "border set size=3 color=#ffffff export",
         "border off"
       ],
       "subcommands": [
@@ -39,7 +41,8 @@
         { "name": "templates", "summary": "List saved templates" },
         { "name": "apply", "summary": "Apply a template, or the default when no name is given" },
         { "name": "off", "summary": "Remove the border" },
-        { "name": "set", "summary": "Set the border from size= and other settings" }
+        { "name": "set", "summary": "Set the border from size= and other settings" },
+        { "name": "export", "summary": "Export the photos with the export defaults. Also a word after apply, set or off" }
       ]
     }
   ]
