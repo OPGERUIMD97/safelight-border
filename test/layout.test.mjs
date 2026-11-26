@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { borderLayout, mapPoint, lineBand, MODE_CONSTANT, MODE_WHOLE, hexToRgb, rgbToHex,
-         FIT_STAGE_DEF, PAINT_STAGE_DEF } from "../dist/index.js";
+         FIT_STAGE_DEF, PAINT_STAGE_DEF, parseBorderSettings, borderPatchFromSettings } from "../dist/index.js";
 
 const near = (a, b, e = 1e-9) => assert.ok(Math.abs(a - b) < e, `${a} != ${b}`);
 
@@ -145,3 +145,23 @@ import { renameTemplate, isBuiltInTemplate } from "../dist/index.js";
   assert.ok(isBuiltInTemplate(STARTER_TEMPLATES[2])); assert.ok(!isBuiltInTemplate({ id: "mine" }));
 }
 console.log("rename tests passed");
+
+// Terminal settings: size= and colour words become the same patch as a template.
+{
+  const bad = parseBorderSettings(["size"]);
+  assert.equal(typeof bad.error, "string");
+  const mode = parseBorderSettings(["mode=nope"]);
+  assert.match(mode.error, /constant or whole/);
+  const parsed = parseBorderSettings(["size=3", "mode=whole", "color=#ff0000", "line=10"]);
+  assert.equal(parsed.fields.size, 3);
+  assert.equal(parsed.fields.mode, MODE_WHOLE);
+  const patch = borderPatchFromSettings(parsed.fields);
+  assert.equal(patch["safelight-border.fit.bSize"], 3);
+  assert.equal(patch["safelight-border.fit.bMode"], MODE_WHOLE);
+  assert.equal(patch["safelight-border.fit.bLine"], 10);
+  assert.equal(patch["safelight-border.paint.bOn"], true);
+  assert.deepEqual(patch["safelight-border.paint.bColor"].map((x) => Math.round(x)), [1, 0, 0]);
+  const off = borderPatchFromSettings(parseBorderSettings(["size=0"]).fields);
+  assert.equal(off["safelight-border.paint.bOn"], false);
+}
+console.log("terminal setting tests passed");

@@ -36,6 +36,18 @@ Dock the Border panel in the Library to put a border on many photos at once:
 
 A green dot on the thumbnail marks every photo with a border (hover for the template), and the panel shows how many of the selected photos have one. Every photo gets one undoable step in its history. In the Library the panel only works on the selection, never on the photo that is open in Develop. Fine-tune a single photo in Develop.
 
+## Terminal
+
+With the [Terminal](https://github.com/anthonyreimche/Terminal) extension on, `border` works in that console (Ctrl+`). It uses the same photos as the other commands: the photo open in Develop, or the Library selection. Each change is one undo step on each photo, and the export includes it.
+
+| Command | What it does |
+| --- | --- |
+| `border status` | Says which border each photo has, or `off` |
+| `border templates` | Lists the saved templates. ★ is the default |
+| `border apply "White, thin"` | Applies that template. With no name, applies the default |
+| `border set size=3 color=#ffffff` | Sets the border directly. `mode` is `constant` or `whole` |
+| `border off` | Removes the border |
+
 ## Notes
 
 - The frame follows your crop. For a square or 3:2 result, pick that ratio in **Crop** first.
@@ -43,6 +55,9 @@ A green dot on the thumbnail marks every photo with a border (hover for the temp
 - For mats, passe-partouts, frames and print layouts, use [Framing / Border](https://github.com/OPGERUIMD97/safelight-mat-frame). Its Border mode steps aside while this extension is active.
 
 ## Changelog
+
+### 2.8.0
+- A `border` command for the Terminal: status, templates, apply, set and off, on the open photo or the Library selection.
 
 ### 2.7.0
 - **Rename** your own templates. Built-in templates can only be deleted; **Reset templates** brings them back.

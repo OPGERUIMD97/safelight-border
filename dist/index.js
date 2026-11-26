@@ -213,6 +213,48 @@ export function templateToPatch(t) {
   return patch;
 }
 
+// Words after `border set`: size=3 mode=whole color=#ffffff
+const BORDER_SET_KEYS = {
+  size: "size", mode: "mode", line: "line", lineoff: "lineOff",
+  color: "color", colour: "color", linecolor: "lineColor", linecolour: "lineColor",
+  x: "offX", y: "offY", offx: "offX", offy: "offY",
+};
+
+export function parseBorderSettings(words) {
+  const fields = {};
+  for (const w of words) {
+    const eq = String(w).indexOf("=");
+    if (eq <= 0) return { error: `"${w}" is not a setting. Use size=3.` };
+    const rawKey = w.slice(0, eq);
+    const field = BORDER_SET_KEYS[rawKey.toLowerCase()];
+    if (!field) return { error: `Unknown setting "${rawKey}". Use size, mode, line, lineoff, color, linecolor, x, y.` };
+    const val = w.slice(eq + 1);
+    if (field === "mode") {
+      const m = val.toLowerCase();
+      if (m === "whole" || m === "1") fields.mode = MODE_WHOLE;
+      else if (m === "constant" || m === "0") fields.mode = MODE_CONSTANT;
+      else return { error: `mode is constant or whole, not "${val}".` };
+    } else if (field === "color" || field === "lineColor") {
+      if (!/^#?[0-9a-f]{6}$/i.test(val)) return { error: `${rawKey} is a colour like #ffffff.` };
+      fields[field] = hexToRgb(val);
+    } else {
+      const n = Number(val);
+      if (!Number.isFinite(n)) return { error: `${rawKey} needs a number.` };
+      fields[field] = n;
+    }
+  }
+  return { fields };
+}
+
+export function borderPatchFromSettings(fields) {
+  const t = {};
+  for (const f of TEMPLATE_FIELDS) {
+    const base = DEFAULTS[K[f]];
+    t[f] = fields[f] !== undefined ? fields[f] : (Array.isArray(base) ? base.slice() : base);
+  }
+  return templateToPatch(t);
+}
+
 export function templateMatches(t, bag) {
   const cur = templateFromBag(bag, "", "");
   return TEMPLATE_FIELDS.every((f) => {
@@ -635,6 +677,114 @@ export function activate(api) {
     return { done, failed: failed.length };
   }
 
+  function findTemplate(name) {
+    const list = loadTemplates();
+    const q = String(name || "").trim().toLowerCase();
+    if (!q) return defaultTemplate(list, loadDefaultId()) || null;
+    return list.find((t) => String(t.name).toLowerCase() === q)
+      || list.find((t) => String(t.id).toLowerCase() === q)
+      || null;
+  }
+
+  function photoLabel(photo) {
+    return photo?.filename || photo?.name || photo?.id || "photo";
+  }
+
+  async function borderCommand(ctx) {
+    const words = Array.isArray(ctx.words) ? ctx.words : [];
+    const verb = String(words[0] || "status").toLowerCase();
+    const rest = words.slice(1);
+    if (verb === "templates") {
+      const list = loadTemplates();
+      const def = loadDefaultId();
+      if (!list.length) { ctx.print("No templates."); return; }
+      for (const t of list) ctx.print(`${t.id === def ? "★ " : ""}${t.name}`);
+      return;
+    }
+    const photos = Array.isArray(ctx.photos) ? ctx.photos.filter((p) => p && p.id) : [];
+    const needsPhoto = verb === "status" || verb === "off" || verb === "remove" || verb === "apply" || verb === "set";
+    if (needsPhoto && !photos.length) {
+      ctx.print("No photo. Open one in Develop, or select photos in the Library.");
+      return;
+    }
+    if (needsPhoto && (typeof catalogApi.getEditState !== "function" || typeof catalogApi.putEditState !== "function")) {
+      ctx.print("This Safelight can't write a border from the terminal.");
+      return;
+    }
+    if (verb === "status") {
+      const templates = loadTemplates();
+      for (const photo of photos) {
+        if (ctx.signal?.aborted) return;
+        const bag = bagAtCursor(await catalogApi.getEditState(photo.id));
+        const info = borderInfo(bag, templates);
+        ctx.print(info ? `${photoLabel(photo)}: ${info.name || "custom"}` : `${photoLabel(photo)}: off`);
+      }
+      return;
+    }
+    const report = (done, failed, what) => {
+      ctx.print(failed
+        ? `${what} ${done} of ${photos.length}. ${failed} could not be changed.`
+        : `${what} ${done} photo${done === 1 ? "" : "s"}.`);
+    };
+    if (verb === "off" || verb === "remove") {
+      const { done, failed } = await applyToSelection(photos.map((p) => p.id), BORDER_OFF_PATCH, "Remove border");
+      report(done, failed, "Removed the border on");
+      return;
+    }
+    if (verb === "apply") {
+      const t = findTemplate(rest.join(" "));
+      if (!t) {
+        ctx.print(rest.length
+          ? `No template named "${rest.join(" ")}". Try: border templates`
+          : "No default template. Name one: border apply \"White, thin\"");
+        return;
+      }
+      const { done, failed } = await applyToSelection(photos.map((p) => p.id), templateToPatch(t), `Border template: ${t.name}`);
+      report(done, failed, `Applied "${t.name}" to`);
+      return;
+    }
+    if (verb === "set") {
+      const parsed = parseBorderSettings(rest);
+      if (parsed.error) { ctx.print(parsed.error); return; }
+      if (parsed.fields.size === undefined) {
+        ctx.print("border set needs size= (0 to 49). Example: border set size=3 color=#ffffff");
+        return;
+      }
+      const { done, failed } = await applyToSelection(photos.map((p) => p.id), borderPatchFromSettings(parsed.fields), "Border");
+      report(done, failed, parsed.fields.size > 0 ? "Set the border on" : "Removed the border on");
+      return;
+    }
+    ctx.print("Try: border status, border templates, border apply \"White, thin\", border set size=3, border off.");
+  }
+
+  if (api.commands && typeof api.commands.register === "function") {
+    api.commands.register({
+      name: "border",
+      summary: "Apply, remove or inspect the border on the open photo or the Library selection",
+      usage: [
+        "border status",
+        "border templates",
+        "border apply [name]",
+        "border off",
+        "border set size=<0-49> [mode=constant|whole] [color=#rrggbb] [linecolor=#rrggbb] [line=<0-100>] [x=<0-1>] [y=<0-1>]",
+      ],
+      examples: [
+        "border status",
+        "border apply \"White, thin\"",
+        "border set size=3 color=#ffffff",
+        "border off",
+      ],
+      subcommands: [
+        { name: "status", summary: "Say which border each photo has" },
+        { name: "templates", summary: "List saved templates" },
+        { name: "apply", summary: "Apply a template, or the default when no name is given" },
+        { name: "off", summary: "Remove the border" },
+        { name: "set", summary: "Set the border from size= and other settings" },
+      ],
+      run: borderCommand,
+    });
+  }
+
   function LibraryPanel() {
     const selected = useCatalogStore ? useCatalogStore((s) => s.selectedIds) : null;
     const ids = selected ? Array.from(selected) : [];
@@ -815,5 +965,5 @@ export function activate(api) {
     ownsBag: ALL_KEYS,
   });
 
-  console.log("[safelight-border] v2.7.0 loaded");
+  console.log("[safelight-border] v2.8.0 loaded");
 }
